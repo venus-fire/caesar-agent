@@ -24,6 +24,8 @@ All notable changes to Caesar are documented in this file. Format follows [Keep 
   `deeper`/`deepest`) and the standalone `nano`/`mini`/`regular` presets now use
   `provider: deepseek`, `deepseek-chat`, local embeddings, no image generation,
   and `use_ddgs: false` so Tavily is used when `TAVILY_API_KEY` is set.
+- **ChromaDB pinned to 1.5.2** in `requirements.txt` (avoids the 1.5.3+ SQLite
+  pool deadlock; re-engages `launch.sh`'s `EXPECTED_CHROMADB` downgrade guard).
 
 ## [0.4.21] — 2026-08-17
 

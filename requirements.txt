@@ -15,7 +15,11 @@ scipy
 tinydb
 
 # KB/Memory Packages
-chromadb
+# ChromaDB pinned to 1.5.2 — the version this repo has verified in production
+# venvs. 1.5.3+ regresses a SQLite-pool deadlock that wedges the server on
+# relaunch (chroma-core/chroma#4038); web_server/launch.sh reads this pin via
+# EXPECTED_CHROMADB and force-downgrades any newer venv copy on start.
+chromadb==1.5.2
 llama-index
 llama-index-vector-stores-chroma
 llama-index-embeddings-openai
