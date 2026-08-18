@@ -469,6 +469,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Hardlink de-duplication (uv/pip link from cache → NLTK pathsec refuses)
+# ---------------------------------------------------------------------------
+# uv/pip install wheels by HARDLINKING files from their cache into the venv, so
+# site-packages files carry st_nlink=2. NLTK's data-path security (nltk/pathsec.py,
+# CWE-59) refuses to open any multiply-linked file, so loading its bundled stopwords
+# corpus during KB tokenization throws:
+#   PermissionError: Security Violation [pathsec.open]: refusing multiply-linked
+#   file '.../nltk_cache/corpora/stopwords/english' (st_nlink=2)
+# Fix: give every multiply-linked file in site-packages a unique inode by copying
+# over itself. Idempotent; after the first run no files match and this is a no-op.
+if [ -d "$VENV/lib" ]; then
+    info "Breaking uv/pip hardlinks in venv (NLTK pathsec)"
+    find "$VENV/lib" -path '*/site-packages/*' -type f -links +1 \
+        -exec cp -p '{}' '{}.hlinkfix_' \; \
+        -exec rm '{}' \; \
+        -exec mv '{}.hlinkfix_' '{}' \; 2>/dev/null || true
+fi
+
+# ---------------------------------------------------------------------------
 # 3. Port checks (don't try to fight a process we don't own)
 # ---------------------------------------------------------------------------
 port_in_use() {
