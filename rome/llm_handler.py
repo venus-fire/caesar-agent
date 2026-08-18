@@ -529,6 +529,23 @@ class LLMHandler:
         **kwargs) -> str:
         """Chat completion with cost limiting and context management."""
 
+        # ---- DeepSeek JSON-mode system-prompt guard -------------------------
+        # DeepSeek only honors response_format={"type":"json_object"} when the
+        # word "json" appears in the SYSTEM message (OpenAI does not require
+        # this, and placing it in the user prompt alone is NOT enough — the
+        # request still 400s). Several Caesar prompts request JSON output without
+        # such a system hint, so without this guard every JSON synthesis /
+        # next-query call fails with 'Prompt must contain the word "json"' and
+        # the run ends with "No synthesis artifacts created". Ensure the system
+        # message carries the word; zero effect on non-DeepSeek providers.
+        if (self.provider == 'deepseek' and response_format
+                and dict(response_format).get('type') == 'json_object'):
+            sys_text = (system_message or self.system_message or '')
+            if not re.search(r'\bjson\b', sys_text, re.IGNORECASE):
+                guard = "You are an assistant that always responds in valid JSON."
+                system_message = (f"{guard}\n\n{system_message}" if system_message
+                                  else (f"{guard}\n\n{self.system_message}" if getattr(self, 'system_message', None) else guard))
+
         # Build messages
         messages = []
         if system_message or self.system_message:
