@@ -26,6 +26,7 @@ try:
     from llama_index.core.embeddings import BaseEmbedding
     from llama_index.embeddings.openai import OpenAIEmbedding
     from llama_index.llms.openai import OpenAI
+    from llama_index.llms.openai_like import OpenAILike
     from llama_index.vector_stores.chroma import ChromaVectorStore
     # Needed for OpenAIEmbeddingFunction. Guarded so importing this module
     # without OPENAI_API_KEY set doesn't crash before the CLI can emit its
@@ -337,13 +338,16 @@ class ChromaClientManager:
             # The KB's chat LLM reads its key from the deployment env
             # (DEEPSEEK_API_KEY) like the rest of the stack. DeepSeek's
             # OpenAI-compatible API lives at api.deepseek.com and doesn't
-            # accept reasoning_effort.
-            self.llm = OpenAI(
+            # accept reasoning_effort. Use OpenAILike (not OpenAI) so an
+            # arbitrary model name like 'deepseek-chat' isn't rejected by
+            # llama-index's hardcoded OpenAI model list.
+            self.llm = OpenAILike(
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=DEFAULT_CONFIG['LLMHandler']['max_completion_tokens'],
                 api_base="https://api.deepseek.com",
                 api_key=os.environ.get('DEEPSEEK_API_KEY'),
+                is_chat_model=True,
             )
         else:
             self.llm = OpenAI(

@@ -24,6 +24,10 @@ llama-index
 llama-index-vector-stores-chroma
 llama-index-embeddings-openai
 llama-index-llms-openai
+# For the DeepSeek (OpenAI-compatible) KB LLM. The plain llama-index `openai`
+# llm hard-validates model names against OpenAI's list and rejects
+# 'deepseek-chat'; OpenAILike accepts arbitrary OpenAI-compatible models.
+llama-index-llms-openai-like
 pillow  # llama-index-core imports PIL at import time; not always pulled transitively
 # mem0ai[graph]
 mem0ai

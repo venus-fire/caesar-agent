@@ -26,6 +26,10 @@ All notable changes to Caesar are documented in this file. Format follows [Keep 
   and `use_ddgs: false` so Tavily is used when `TAVILY_API_KEY` is set.
 - **ChromaDB pinned to 1.5.2** in `requirements.txt` (avoids the 1.5.3+ SQLite
   pool deadlock; re-engages `launch.sh`'s `EXPECTED_CHROMADB` downgrade guard).
+- **KB LLM via `OpenAILike` for DeepSeek.** llama-index's `openai` LLM hard-validates
+  model names against OpenAI's list and rejects `deepseek-chat`; the DeepSeek path
+  now uses `llama-index-llms-openai-like`'s `OpenAILike` (no model-name restriction),
+  which requires adding that package to `requirements.txt`.
 
 ## [0.4.21] — 2026-08-17
 
