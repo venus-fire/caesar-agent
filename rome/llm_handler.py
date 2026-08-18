@@ -118,6 +118,17 @@ class LLMHandler:
         "gemini-3.1-pro-preview": {"input": 2.0, "output": 12.0},
         "gemini-3-flash-preview": {"input": 0.50, "output": 3.0},
         "gemini-3.1-flash-lite-preview": {"input": 0.25, "output": 1.50},
+        # DeepSeek V4 (api.deepseek.com). DeepSeek switched to peak/off-peak
+        # billing on 2026-08-16T16:00Z. These are the off-peak cache-miss input +
+        # output rates per 1M tokens — the guaranteed floor. Peak hours are ~2x
+        # (flash $0.44/$1.32, pro $1.32/$3.96) and cache-hit input is far cheaper
+        # ($0.007/$0.022); the flat-rate tracker here doesn't model either, so a
+        # peak-time or cache-heavy run will differ from the estimate. (Pre-change
+        # flat rates were flash $0.14/$0.28, pro $0.435/$0.87.)
+        # The run-cost guard uses this table, so with real rates the $500
+        # cost_limit is meaningful again instead of under-reading spend.
+        "deepseek-v4-flash": {"input": 0.22, "output": 0.66},
+        "deepseek-v4-pro": {"input": 0.66, "output": 1.98},
     }
 
     MODEL_CONTEXT_SIZE = {

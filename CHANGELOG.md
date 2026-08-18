@@ -36,6 +36,13 @@ All notable changes to Caesar are documented in this file. Format follows [Keep 
   to 0, so the context manager dropped the user message and DeepSeek replied with
   a generic greeting — surfacing as "Missing required keys" / "No synthesis
   artifacts". A guard also skips compression whenever the input budget is ≤ 0.
+- **DeepSeek V4 pricing in `MODEL_PRICING`.** `deepseek-v4-flash`/`-pro` were
+  missing, so every DeepSeek run cost-tracked near $0 and the $500 cost-limit
+  guard never engaged, under-reporting real spend (the UI said $0.003 while the
+  platform bill was much higher). Added current off-peak cache-miss + output
+  rates ($0.22/$0.66 flash, $0.66/$1.98 pro). Note DeepSeek moved to peak/
+  off-peak billing on 2026-08-16; peak hours are ~2x these, so peak-time or
+  cache-heavy runs still differ from the flat-rate estimate.
 
 ## [0.4.21] — 2026-08-17
 
