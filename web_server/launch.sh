@@ -425,8 +425,8 @@ if [ "$CAESAR_DRY_RUN" != "1" ]; then
         # Don't exit — Caesar's preset YAML decides which provider to use,
         # and the user might be relying on a single specific key.
     fi
-    if [ -z "${BRAVE_API_KEY:-}" ]; then
-        info "BRAVE_API_KEY not set — Caesar will fall back to DuckDuckGo (already the default for nano/mini presets)."
+    if [ -z "${TAVILY_API_KEY:-}" ] && [ -z "${BRAVE_API_KEY:-}" ]; then
+        info "Neither TAVILY_API_KEY nor BRAVE_API_KEY set — Caesar will fall back to DuckDuckGo (already the default for nano/mini presets)."
     fi
 fi
 

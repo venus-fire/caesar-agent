@@ -38,7 +38,9 @@ Caesar operates as an "Insight Hunter" rather than a traditional search engine. 
 - **Knowledge graph construction** tracking exploration paths
 - **Vector knowledge base** for semantic insight storage and retrieval (ChromaDB + LlamaIndex)
 - **Multi-provider LLM support** via litellm: OpenAI, Anthropic, Gemini, or any OpenAI-compatible endpoint
-- **Brave Search integration** for web search (auto-fallback to DDGS if `BRAVE_API_KEY` unset)
+- **Tavily / Brave Search integration** for web search. When `TAVILY_API_KEY` is
+  set it wins; otherwise `BRAVE_API_KEY` is used; with neither set Caesar
+  auto-falls-back to DDGS.
 - **Multi-draft artifact synthesis** with adversarial query refinement, citation tracking, and generative draft merging
 - **Checkpoint/resume** support for long explorations
 - **Configurable role adaptation** based on exploration content
@@ -574,8 +576,9 @@ The agent stops gracefully when the limit is approached.
 ### Common Issues
 
 **Web search not working**
-- `BRAVE_API_KEY` is optional; Caesar auto-falls-back to DDGS (`pip install ddgs`).
-- For Brave: `export BRAVE_API_KEY="your-key"` (key from https://brave.com/search/api/).
+- `TAVILY_API_KEY` is optional but preferred; when set it enables the Tavily search backend (REST `POST /search`, key sent in the JSON body).
+- `BRAVE_API_KEY` is optional; Caesar uses Brave whenever `TAVILY_API_KEY` is unset, and auto-falls-back to DDGS (`pip install ddgs`) when neither is set.
+- For Tavily: `export TAVILY_API_KEY="tvly-..."` (key from https://tavily.com). For Brave: `export BRAVE_API_KEY="your-key"` (key from https://brave.com/search/api/).
 - Force DDGS with `BraveSearch: { use_ddgs: true }` in your config.
 
 **"Rate limit exceeded" / transient 429s**

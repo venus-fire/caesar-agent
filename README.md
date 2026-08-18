@@ -68,7 +68,7 @@ Everything else worth knowing before your first run:
 
 - **Python** — 3.10 through 3.13
 - **Presets** — `nano` (fast, ~$0.80), `mini` (balanced, ~$2), `regular` (deep, ~$5–$10). Cost scales with synthesis output tokens, so treat these as order-of-magnitude rather than quotes.
-- **API keys** — `OPENAI_API_KEY` alone is enough to run. Add `ANTHROPIC_API_KEY` or `GOOGLE_API_KEY` to reach Claude and Gemini models, and `BRAVE_API_KEY` for better web search — without it, search falls back to DuckDuckGo.
+- **API keys** — `OPENAI_API_KEY` alone is enough to run. Add `ANTHROPIC_API_KEY` or `GOOGLE_API_KEY` to reach Claude and Gemini models, and `TAVILY_API_KEY` (preferred) or `BRAVE_API_KEY` for better web search — without either, search falls back to DuckDuckGo.
 - **Results** — `caesar/result/` from a source checkout, `~/.caesar/result/` from a PyPI install. `CAESAR_RESULT_DIR` overrides both.
 - **Custom configs** — drop a YAML in `~/.caesar/configs/` and call it by name (`caesar my_preset -q "..."`). Bundled preset names take precedence, so avoid naming yours `nano`, `mini`, or `regular`.
 - **Going deeper** — the full env-var list, exploration modes, and synthesis options are in the **[Caesar module docs](caesar/README.md)**.

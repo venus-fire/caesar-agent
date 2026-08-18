@@ -2,6 +2,19 @@
 
 All notable changes to Caesar are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Tavily web-search backend.** When `TAVILY_API_KEY` is set, `brave_search.py`
+  routes search through Tavily's REST endpoint (`POST https://api.tavily.com/search`,
+  key sent in the JSON body), with the same exponential-backoff / 401-429-5xx
+  handling as the Brave path. Precedence is: explicit `use_ddgs: true` config >
+  `TAVILY_API_KEY` > `BRAVE_API_KEY` > DDGS fallback.
+- **DeepSeek provider.** `rome/llm_handler.py` now resolves a `deepseek` provider
+  (config `provider: deepseek`) to the `DEEPSEEK_API_KEY` environment variable,
+  matching the existing openai/anthropic/gemini key map.
+
 ## [0.4.21] — 2026-08-17
 
 ### Fixed

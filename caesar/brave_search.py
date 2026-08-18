@@ -62,6 +62,11 @@ _install_ddgs_wikipedia_patch()
 
 # Search endpoint
 ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
+# Tavily REST Search endpoint — the API key travels in the JSON body.
+TAVILY_ENDPOINT = "https://api.tavily.com/search"
+# Max organic results Tavily returns per request (free tier caps MAX_RESULTS
+# at 20; this intentionally mirrors Brave's per-page cap for consistency).
+TAVILY_MAX_PER_REQUEST = 20
 # Result directory in which to store results
 SEARCH_RESULT_DIR = "search_result"
 # Max number of search results per API request
@@ -104,16 +109,26 @@ class BraveSearch:
         self.config = config
         set_attributes_from_config(self, self.config, CAESAR_CONFIG['BraveSearch'].keys())
 
-        # Pick a backend: explicit config override, or auto-fallback to DDGS
-        # when BRAVE_API_KEY is not in the environment. self.api_key is None
-        # in DDGS mode and is only consulted by the Brave path.
+        # Pick a backend. Precedence: an explicit `use_ddgs: true` config
+        # wins, then Tavily when TAVILY_API_KEY is present, then Brave when
+        # BRAVE_API_KEY is present, then a DDGS metasearch fallback. self.api_key
+        # is only consulted by the Brave path; Tavily reads its own key.
         self.api_key = os.getenv("BRAVE_API_KEY")
-        if not self.use_ddgs and not self.api_key:
-            self.logger.info(
-                "BRAVE_API_KEY not set; falling back to DDGS metasearch backend")
-            self.use_ddgs = True
-        elif self.use_ddgs:
+        self.tavily_api_key = os.getenv("TAVILY_API_KEY")
+        if self.use_ddgs:
             self.logger.info("DDGS backend forced via use_ddgs config")
+            self.backend = "ddgs"
+        elif self.tavily_api_key:
+            self.logger.info(
+                "TAVILY_API_KEY set; using Tavily search backend")
+            self.backend = "tavily"
+        elif self.api_key:
+            self.logger.info("BRAVE_API_KEY set; using Brave search backend")
+            self.backend = "brave"
+        else:
+            self.logger.info(
+                "Neither TAVILY_API_KEY nor BRAVE_API_KEY set; falling back to DDGS metasearch backend")
+            self.backend = "ddgs"
 
         if self.num_results > MAX_NUM_RESULTS:
             self.logger.error(f"num_results={self.num_results} exceeds max ({MAX_NUM_RESULTS}), capping")
@@ -248,9 +263,11 @@ class BraveSearch:
 
     def _search_with_retry(self, query: str) -> Dict:
         """Run the active backend with retry. DDGS path uses simple
-        exception-based retry; Brave path keeps the detailed status-code
-        handling that knows about 401/429/5xx semantics."""
-        if self.use_ddgs:
+        exception-based retry; Brave/Tavily paths use the detailed
+        status-code handling that knows about 401/429/5xx semantics."""
+        if self.backend == "tavily":
+            return self._search_tavily_with_retry(query)
+        if self.backend == "ddgs":
             return self._search_ddgs_with_retry(query)
         return self._search_brave_with_retry(query)
 
@@ -305,6 +322,96 @@ class BraveSearch:
         raise BraveSearchError(
             f"DDGS failed after {self.max_retries} retries"
         ) from last_exception
+
+    def _search_tavily_with_retry(self, query: str) -> Dict:
+        """Execute Tavily search with exponential backoff retry logic,
+        mirroring the Brave path's status-code handling."""
+        last_exception = None
+        delay = self.retry_delay
+
+        for attempt in range(self.max_retries):
+            try:
+                return self._search_tavily(query)
+
+            except requests.exceptions.HTTPError as e:
+                last_exception = e
+
+                if e.response.status_code == 401:
+                    raise APIKeyError("Invalid or expired Tavily API key") from e
+
+                elif e.response.status_code == 429:
+                    retry_after = e.response.headers.get('Retry-After')
+                    if retry_after:
+                        wait_time = int(retry_after)
+                        self.logger.error(f"Tavily rate limit hit. Waiting {wait_time}s (from Retry-After header)...")
+                        time.sleep(wait_time)
+                    else:
+                        self.logger.error(f"Tavily rate limit hit. Retry {attempt + 1}/{self.max_retries} after {delay}s...")
+                        time.sleep(delay)
+                        delay = min(delay * BACKOFF_MULTIPLIER, MAX_BACKOFF_DELAY)
+
+                    if attempt == self.max_retries - 1:
+                        raise RateLimitError(f"Tavily rate limit exceeded after {self.max_retries} retries") from e
+
+                elif e.response.status_code >= 500:
+                    self.logger.error(f"Tavily server error {e.response.status_code}. Retry {attempt + 1}/{self.max_retries} after {delay}s...")
+                    time.sleep(delay)
+                    delay = min(delay * BACKOFF_MULTIPLIER, MAX_BACKOFF_DELAY)
+
+                    if attempt == self.max_retries - 1:
+                        raise BraveSearchError(f"Tavily server error after {self.max_retries} retries") from e
+                else:
+                    raise BraveSearchError(f"Tavily HTTP {e.response.status_code}: {e}") from e
+
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                self.logger.error(f"Tavily request timeout. Retry {attempt + 1}/{self.max_retries} after {delay}s...")
+                time.sleep(delay)
+                delay = min(delay * BACKOFF_MULTIPLIER, MAX_BACKOFF_DELAY)
+
+                if attempt == self.max_retries - 1:
+                    raise BraveSearchError(f"Tavily request timeout after {self.max_retries} retries") from e
+
+            except requests.exceptions.RequestException as e:
+                last_exception = e
+                self.logger.error(f"Tavily network error. Retry {attempt + 1}/{self.max_retries} after {delay}s...")
+                time.sleep(delay)
+                delay = min(delay * BACKOFF_MULTIPLIER, MAX_BACKOFF_DELAY)
+
+                if attempt == self.max_retries - 1:
+                    raise BraveSearchError(f"Tavily network error after {self.max_retries} retries") from e
+
+        raise BraveSearchError(f"Tavily failed after {self.max_retries} retries") from last_exception
+
+    def _search_tavily(self, query: str) -> Dict:
+        """Query the Tavily Search API (REST) and reshape the response to the
+        Brave dict layout downstream HTML generation expects, so the rest of
+        the pipeline works unchanged.
+
+        Tavily sends the API key in the JSON request body rather than a header.
+        Only the organic `results` list is mapped; the optional `answer`
+        summary and `images`/`raw_content` extras are dropped for parity with
+        the other backends.
+        """
+        payload = {
+            "api_key": self.tavily_api_key,
+            "query": query,
+            "max_results": min(self.num_results, TAVILY_MAX_PER_REQUEST),
+            "include_answer": False,
+        }
+        response = requests.post(TAVILY_ENDPOINT, json=payload, timeout=self.timeout)
+        response.raise_for_status()
+        data = response.json()
+        results = data.get("results") or data.get("web", {}).get("results") or []
+        return {
+            "web": {"results": [
+                {"title": r.get("title", ""),
+                 "url": r.get("url", ""),
+                 "description": r.get("content", r.get("description", ""))}
+                for r in results
+            ]},
+            "query": {"original": query},
+        }
 
     def _search_brave_with_retry(self, query: str) -> Dict:
         """Execute Brave search with exponential backoff retry logic"""
