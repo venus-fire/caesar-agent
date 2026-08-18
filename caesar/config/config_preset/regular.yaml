@@ -20,8 +20,7 @@ CaesarAgent:
   use_quick_explore: False
   quick_explore_insights: False
   exploration_llm_config:
-    model: gpt-5.6-terra
-    reasoning_effort: low
+    model: deepseek-chat
 
   # overwrite_role_file: config/role/self_transcend_role.txt
   # adapt_role_file: config/role/self_transcend_insights_v1.txt
@@ -43,9 +42,10 @@ ArtifactSynthesizer:
 LLMHandler:
   # Synthesis runs through the agent's handler (exploration has its own override
   # above), so this is the synthesis model.
-  model: gpt-5.6-sol
-  reasoning_effort: medium
-  # Override the 900s default: sol needs the extra headroom, same as deepest.yaml.
+  provider: deepseek
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
+  # Override the 900s default: deep research needs the extra headroom, same as deepest.yaml.
   timeout: 1200
 
 # ============================================================================
@@ -56,8 +56,9 @@ AgentMemory:
   use_graph: false
 
 ChromaClientManager:
-  model: gpt-5.4-mini
-  reasoning_effort: low
+  model: deepseek-chat
+  # Local, free, no-API-key embeddings (chroma bundled ONNX all-MiniLM-L6-v2).
+  embedding_model: all-MiniLM-L6-v2
 
 # ============================================================================
 # LOGGING CONFIGURATION

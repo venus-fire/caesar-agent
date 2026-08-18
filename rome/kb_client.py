@@ -17,12 +17,13 @@ from .llm_handler import FatalLLMError, LLMHandler
 
 try:
     from chromadb.utils.embedding_functions import (
-       SentenceTransformerEmbeddingFunction, OpenAIEmbeddingFunction)
+       OpenAIEmbeddingFunction, DefaultEmbeddingFunction)
     from llama_index.core import VectorStoreIndex, Document, Settings, StorageContext
     from llama_index.core.node_parser import SentenceSplitter
     from llama_index.core.postprocessor.llm_rerank import LLMRerank
     from llama_index.core.response_synthesizers import get_response_synthesizer
     from llama_index.core.vector_stores import MetadataFilters, MetadataFilter, FilterOperator
+    from llama_index.core.embeddings import BaseEmbedding
     from llama_index.embeddings.openai import OpenAIEmbedding
     from llama_index.llms.openai import OpenAI
     from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -58,6 +59,52 @@ EMBEDDING_MODELS = {
     "all-MiniLM-L12-v2": 384,
     "paraphrase-MiniLM-L6-v2": 384
 }
+
+
+class _LocalChromaEmbeddings(BaseEmbedding):
+    """llama_index BaseEmbedding that delegates to chromadb's bundled ONNX
+    embedder (DefaultEmbeddingFunction → all-MiniLM-L6-v2, 384-dim).
+
+    Lets the llama-index retrieval/query path use the SAME free, local,
+    no-API-key embedding model that ChromaDB uses to store documents, so a
+    deployment can run entirely on local embeddings without OpenAI (e.g. with
+    a DeepSeek chat provider that has no embedding endpoint). No torch or
+    sentence-transformers required — only onnxruntime, which chromadb pulls
+    as a dependency for DefaultEmbeddingFunction.
+    """
+
+    _fn = None
+
+    @classmethod
+    def class_name(cls) -> str:
+        return "LocalChromaEmbeddings"
+
+    @classmethod
+    def _get_fn(cls):
+        # Lazy: construct chroma's ONNX embedder on first use so importing
+        # kb_client (e.g. a web run worker) doesn't trigger model/onnxruntime
+        # init until an embedding is actually needed.
+        if cls._fn is None:
+            cls._fn = DefaultEmbeddingFunction()
+        return cls._fn
+
+    def _get_text_embedding(self, text: str) -> List[float]:
+        return self._get_fn()([text])[0].tolist()
+
+    def _get_query_embedding(self, query: str) -> List[float]:
+        return self._get_text_embedding(query)
+
+    def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+        return [emb.tolist() for emb in self._get_fn()(texts)]
+
+    async def _aget_query_embedding(self, query: str) -> List[float]:
+        return self._get_query_embedding(query)
+
+    async def _aget_text_embedding(self, text: str) -> List[float]:
+        return self._get_text_embedding(text)
+
+    async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+        return self._get_text_embeddings(texts)
 
 # OpenAI's `text-embedding-3-*` endpoint caps each request at 300k tokens
 # aggregated across all `input` items, AND each individual item at 8192
@@ -220,10 +267,13 @@ class ChromaClientManager:
     def _create_collection(self):
         """Create collection with appropriate embedding function"""
         expected_dim = EMBEDDING_MODELS[self.embedding_model]
-        is_sentence_transformer = expected_dim == 384
+        is_local = expected_dim == 384
 
-        if is_sentence_transformer:
-            embedding_fn = SentenceTransformerEmbeddingFunction(model_name=self.embedding_model)
+        if is_local:
+            # Local, free, no-API-key embeddings: chromadb's bundled ONNX
+            # all-MiniLM-L6-v2 (DefaultEmbeddingFunction). Avoids pulling
+            # torch/sentence-transformers, unlike SentenceTransformerEmbeddingF
+            embedding_fn = DefaultEmbeddingFunction()
         else:
             if not os.getenv('OPENAI_API_KEY'):
                 raise ValueError(f"OPENAI_API_KEY required for {self.embedding_model}")
@@ -274,18 +324,44 @@ class ChromaClientManager:
 
     def _setup_llamaindex(self):
         """Setup LlamaIndex components with instance isolation"""
-        self.llm = OpenAI(
-            model=self.model,
-            temperature=self.temperature,
-            max_tokens=DEFAULT_CONFIG['LLMHandler']['max_completion_tokens'],
-            additional_kwargs={"reasoning_effort": self.reasoning_effort}
-                if (self.reasoning_effort
-                    and LLMHandler.is_reasoning_model(self.model)) else None,
-        )
-        self.embed_model = OpenAIEmbedding(model=self.embedding_model)
+        llm_config = (self.agent.config or {}).get('LLMHandler', {}) or {}
+        provider = (llm_config.get('provider') or 'openai')
+        is_local_embed = EMBEDDING_MODELS.get(self.embedding_model) == 384
+
+        if provider == 'deepseek':
+            # The KB's chat LLM reads its key from the deployment env
+            # (DEEPSEEK_API_KEY) like the rest of the stack. DeepSeek's
+            # OpenAI-compatible API lives at api.deepseek.com and doesn't
+            # accept reasoning_effort.
+            self.llm = OpenAI(
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=DEFAULT_CONFIG['LLMHandler']['max_completion_tokens'],
+                api_base="https://api.deepseek.com",
+                api_key=os.environ.get('DEEPSEEK_API_KEY'),
+            )
+        else:
+            self.llm = OpenAI(
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=DEFAULT_CONFIG['LLMHandler']['max_completion_tokens'],
+                additional_kwargs={"reasoning_effort": self.reasoning_effort}
+                    if (self.reasoning_effort
+                        and LLMHandler.is_reasoning_model(self.model)) else None,
+            )
+
+        if is_local_embed:
+            # Local free embeddings (chroma ONNX all-MiniLM-L6-v2), so the
+            # retrieval/query path matches the storage embedding function and
+            # needs no OpenAI/embedding API key. Ideal with a DeepSeek chat
+            # provider, which has no embedding endpoint.
+            self.embed_model = _LocalChromaEmbeddings()
+        else:
+            self.embed_model = OpenAIEmbedding(model=self.embedding_model)
+
         self.logger.debug(
-            f"LlamaIndex OpenAI config: model={self.model}, "
-            f"embed={self.embedding_model}")
+            f"LlamaIndex config: model={self.model} (provider={provider}), "
+            f"embed={self.embedding_model} ({'local' if is_local_embed else 'openai'})")
 
         # Configure chunking if specified
         if self.chunk_size and self.chunk_overlap is not None:

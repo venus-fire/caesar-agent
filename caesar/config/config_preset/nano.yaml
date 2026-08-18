@@ -19,8 +19,7 @@ CaesarAgent:
   use_quick_explore: True
   quick_explore_insights: False
   exploration_llm_config:
-    model: gpt-5.6-luna
-    reasoning_effort: low
+    model: deepseek-chat
 
   # overwrite_role_file: config/role/self_transcend_role.txt
   # adapt_role_file: config/role/self_transcend_insights_v1.txt
@@ -40,8 +39,9 @@ ArtifactSynthesizer:
 # LLM CONFIGURATION
 # ============================================================================
 LLMHandler:
-  model: gpt-5.6-luna
-  reasoning_effort: low
+  provider: deepseek
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
 
 # ============================================================================
 # KNOWLEDGE BASE CONFIGURATION
@@ -51,15 +51,16 @@ AgentMemory:
   use_graph: false
 
 ChromaClientManager:
-  model: gpt-5.4-mini
-  reasoning_effort: low
+  model: deepseek-chat
+  # Local, free, no-API-key embeddings (chroma bundled ONNX all-MiniLM-L6-v2).
+  embedding_model: all-MiniLM-L6-v2
 
 # ============================================================================
 # WEB SEARCH CONFIGURATION
 # ============================================================================
 BraveSearch:
-  # Force the DDGS metasearch backend regardless of BRAVE_API_KEY availability.
-  use_ddgs: True
+  # false → Tavily wins when TAVILY_API_KEY is set, then Brave, then DDGS.
+  use_ddgs: False
 
 # ============================================================================
 # LOGGING CONFIGURATION

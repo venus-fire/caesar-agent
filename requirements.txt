@@ -62,3 +62,8 @@ graphviz
 # ribs
 tiktoken
 xxhash
+# Local, no-API-key embeddings (chromadb DefaultEmbeddingFunction /
+# all-MiniLM-L6-v2). NOT auto-installed by chromadb; must be requested
+# explicitly. Enables a fully local knowledge-graph stack (e.g. with the
+# DeepSeek chat provider, which has no embedding endpoint).
+onnxruntime

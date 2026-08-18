@@ -1,5 +1,4 @@
-# Web-server preset: fast
-# Standalone caesar's caesar/config/config_preset/nano.yaml is unchanged.
+# Web-server preset: fast (DeepSeek + Tavily + local-embeddings flavor)
 Agent:
   name: CaesarExplorer
   draw_fsm: false
@@ -12,8 +11,7 @@ CaesarAgent:
   use_quick_explore: True
   quick_explore_insights: False
   exploration_llm_config:
-    model: gpt-5.6-luna
-    reasoning_effort: low
+    model: deepseek-chat
 
   adapt_role: True
 
@@ -26,28 +24,26 @@ ArtifactSynthesizer:
   synthesis_human_eval: false
   synthesis_max_length: null
   synthesis_iteration_filter: null
-  synthesis_generate_images: 1
-
-ImageGenerator:
-  quality: medium
-  # Trim VLM scoring candidates (default 150) for the single-image case —
-  # ~5x cheaper at minor relevance cost; 30 still gets a good top pick.
-  max_candidates_to_score: 30
+  # No image model on a DeepSeek-only deployment.
+  synthesis_generate_images: 0
 
 LLMHandler:
-  model: gpt-5.6-luna
-  reasoning_effort: low
+  provider: deepseek
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
 
 AgentMemory:
   enabled: false
   use_graph: false
 
 ChromaClientManager:
-  model: gpt-5.4-mini
-  reasoning_effort: low
+  model: deepseek-chat
+  # Local, free, no-API-key embeddings (chroma bundled ONNX all-MiniLM-L6-v2).
+  embedding_model: all-MiniLM-L6-v2
 
 BraveSearch:
-  use_ddgs: True
+  # false → Tavily wins when TAVILY_API_KEY is set, then Brave, then DDGS.
+  use_ddgs: False
 
 Logger:
   include_caller_info: "rome"

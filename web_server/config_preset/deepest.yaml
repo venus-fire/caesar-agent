@@ -1,6 +1,5 @@
-# Web-server preset: deepest
-# Iterative depth-first exploration — produces richer non-radial graph
-# shapes (trees, branches, sub-clusters) at the cost of longer runtime.
+# Web-server preset: deepest (DeepSeek + Tavily + local-embeddings flavor)
+# Extended iterative walk; the heaviest budget.
 Agent:
   name: CaesarExplorer
   draw_fsm: false
@@ -14,8 +13,7 @@ CaesarAgent:
   use_quick_explore: False
   quick_explore_insights: False
   exploration_llm_config:
-    model: gpt-5.6-luna
-    reasoning_effort: low
+    model: deepseek-chat
 
   adapt_role: True
 
@@ -28,12 +26,14 @@ ArtifactSynthesizer:
   synthesis_human_eval: false
   synthesis_max_length: null
   synthesis_iteration_filter: null
-  synthesis_generate_images: 6
+  # No image model on a DeepSeek-only deployment.
+  synthesis_generate_images: 0
 
 LLMHandler:
-  model: gpt-5.6-sol
-  reasoning_effort: medium
-  # Override 900s default: gpt-5.6-sol needs the extra headroom.
+  provider: deepseek
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
+  # Deep research + synthesis calls need the extra headroom.
   timeout: 1200
 
 AgentMemory:
@@ -41,11 +41,13 @@ AgentMemory:
   use_graph: false
 
 ChromaClientManager:
-  model: gpt-5.4-mini
-  reasoning_effort: low
+  model: deepseek-chat
+  # Local, free, no-API-key embeddings (chroma bundled ONNX all-MiniLM-L6-v2).
+  embedding_model: all-MiniLM-L6-v2
 
 BraveSearch:
-  use_ddgs: True
+  # false → Tavily wins when TAVILY_API_KEY is set, then Brave, then DDGS.
+  use_ddgs: False
 
 Logger:
   include_caller_info: "rome"

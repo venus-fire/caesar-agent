@@ -14,6 +14,16 @@ All notable changes to Caesar are documented in this file. Format follows [Keep 
 - **DeepSeek provider.** `rome/llm_handler.py` now resolves a `deepseek` provider
   (config `provider: deepseek`) to the `DEEPSEEK_API_KEY` environment variable,
   matching the existing openai/anthropic/gemini key map.
+- **Local, free, no-API-key embeddings.** `rome/kb_client.py` now uses chromadb's
+  bundled ONNX embedder (`DefaultEmbeddingFunction` → all-MiniLM-L6-v2, 384-dim)
+  for the 384-dim local models instead of `SentenceTransformerEmbeddingFunction`,
+  and exposes a matched `_LocalChromaEmbeddings` for the llama-index query path.
+  `onnxruntime` added to `requirements.txt`. Enables a fully local knowledge
+  graph when the chat provider (e.g. DeepSeek) has no embedding endpoint.
+- **DeepSeek-flavoured presets.** All web-server presets (`fast`/`normal`/
+  `deeper`/`deepest`) and the standalone `nano`/`mini`/`regular` presets now use
+  `provider: deepseek`, `deepseek-chat`, local embeddings, no image generation,
+  and `use_ddgs: false` so Tavily is used when `TAVILY_API_KEY` is set.
 
 ## [0.4.21] — 2026-08-17
 
