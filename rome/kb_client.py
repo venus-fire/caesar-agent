@@ -62,40 +62,28 @@ EMBEDDING_MODELS = {
 
 
 class _LocalChromaEmbeddings(BaseEmbedding):
-    """llama_index BaseEmbedding that delegates to chromadb's bundled ONNX
-    embedder (DefaultEmbeddingFunction → all-MiniLM-L6-v2, 384-dim).
+    """llama_index BaseEmbedding delegating to chromadb's bundled ONNX embedder
+    (DefaultEmbeddingFunction → all-MiniLM-L6-v2, 384-dim).
 
     Lets the llama-index retrieval/query path use the SAME free, local,
     no-API-key embedding model that ChromaDB uses to store documents, so a
-    deployment can run entirely on local embeddings without OpenAI (e.g. with
-    a DeepSeek chat provider that has no embedding endpoint). No torch or
-    sentence-transformers required — only onnxruntime, which chromadb pulls
-    as a dependency for DefaultEmbeddingFunction.
+    deployment can run entirely on local embeddings without OpenAI (e.g. a
+    DeepSeek chat provider, which has no embedding endpoint). No torch or
+    sentence-transformers required — only onnxruntime.
     """
-
-    _fn = None
 
     @classmethod
     def class_name(cls) -> str:
         return "LocalChromaEmbeddings"
 
-    @classmethod
-    def _get_fn(cls):
-        # Lazy: construct chroma's ONNX embedder on first use so importing
-        # kb_client (e.g. a web run worker) doesn't trigger model/onnxruntime
-        # init until an embedding is actually needed.
-        if cls._fn is None:
-            cls._fn = DefaultEmbeddingFunction()
-        return cls._fn
-
     def _get_text_embedding(self, text: str) -> List[float]:
-        return self._get_fn()([text])[0].tolist()
+        return _local_onnx_embed_fn()([text])[0].tolist()
 
     def _get_query_embedding(self, query: str) -> List[float]:
         return self._get_text_embedding(query)
 
     def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
-        return [emb.tolist() for emb in self._get_fn()(texts)]
+        return [emb.tolist() for emb in _local_onnx_embed_fn()(texts)]
 
     async def _aget_query_embedding(self, query: str) -> List[float]:
         return self._get_query_embedding(query)
@@ -105,6 +93,23 @@ class _LocalChromaEmbeddings(BaseEmbedding):
 
     async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
         return self._get_text_embeddings(texts)
+
+
+_onnx_embed_fn = None
+
+
+def _local_onnx_embed_fn():
+    """Lazily construct chromadb's ONNX embedder (first use only), so importing
+    kb_client doesn't initialize onnxruntime until an embedding is needed.
+
+    Module-level singleton, NOT a class attribute: llama_index's BaseEmbedding is
+    a pydantic BaseModel, and a leading-underscore class attribute is treated as
+    a pydantic private attribute (ModelPrivateAttr), which isn't callable.
+    """
+    global _onnx_embed_fn
+    if _onnx_embed_fn is None:
+        _onnx_embed_fn = DefaultEmbeddingFunction()
+    return _onnx_embed_fn
 
 # OpenAI's `text-embedding-3-*` endpoint caps each request at 300k tokens
 # aggregated across all `input` items, AND each individual item at 8192
