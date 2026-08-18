@@ -20,7 +20,7 @@ CaesarAgent:
   use_quick_explore: False
   quick_explore_insights: False
   exploration_llm_config:
-    model: deepseek-chat
+    model: deepseek-v4-flash
 
   # overwrite_role_file: config/role/self_transcend_role.txt
   # adapt_role_file: config/role/self_transcend_insights_v1.txt
@@ -44,7 +44,7 @@ LLMHandler:
   # above), so this is the synthesis model.
   provider: deepseek
   base_url: https://api.deepseek.com
-  model: deepseek-chat
+  model: deepseek-v4-flash
   # Override the 900s default: deep research needs the extra headroom, same as deepest.yaml.
   timeout: 1200
 
@@ -56,7 +56,7 @@ AgentMemory:
   use_graph: false
 
 ChromaClientManager:
-  model: deepseek-chat
+  model: deepseek-v4-flash
   # Local, free, no-API-key embeddings (chroma bundled ONNX all-MiniLM-L6-v2).
   embedding_model: all-MiniLM-L6-v2
 

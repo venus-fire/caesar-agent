@@ -161,6 +161,16 @@ class LLMHandler:
         "gemini-3.1-pro-preview": 1048576,
         "gemini-3-flash-preview": 1048576,
         "gemini-3.1-flash-lite-preview": 1048576,
+        # DeepSeek V4 (api.deepseek.com). litellm has no accurate context for
+        # these, and an under-reported value makes max_input_tokens clamp to 0,
+        # wiping the user message (model answers with a greeting). V4 advertises
+        # a 1M-token context window.
+        "deepseek-v4-flash": 1048576,
+        "deepseek-v4-pro": 1048576,
+        # Older V3 aliases for anyone still pointing at them; 64K is their API
+        # context, well under what litellm's 8192 fallback would claim.
+        "deepseek-chat": 65536,
+        "deepseek-reasoner": 65536,
     }
 
     # Models that support reasoning_effort or equivalent thinking parameters.
@@ -272,13 +282,13 @@ class LLMHandler:
     @lru_cache(maxsize=1)
     def _get_model_context_length(self) -> int:
         """Get context length for the current model."""
+        base_model = self._get_base_model()
+        if base_model in self.MODEL_CONTEXT_SIZE:
+            return self.MODEL_CONTEXT_SIZE[base_model]
         try:
             return litellm.get_max_tokens(self._get_litellm_model())
         except Exception:
             pass
-        base_model = self._get_base_model()
-        if base_model in self.MODEL_CONTEXT_SIZE:
-            return self.MODEL_CONTEXT_SIZE[base_model]
         self.logger.error(f"Unknown model {self.model}, using 128000 as fallback context size")
         return 128000
 
@@ -297,6 +307,13 @@ class LLMHandler:
     def _should_use_precise_counting(self, messages: List[Dict]) -> bool:
         """Decide if precise token counting is needed."""
         if not self.manage_context:
+            return False
+        # If the max input budget degenerates to 0 or negative (e.g. an
+        # under-reported model context length makes max_input_tokens clamp to 0),
+        # the threshold is 0 and EVERY message looks over-budget, which drops the
+        # user message and leaves only the system message (model answers with a
+        # greeting). Skip compression so the prompt is never stripped away.
+        if self._get_max_input_tokens() <= 0:
             return False
         fast_estimate = self._count_tokens(messages, precise=False)
         threshold = self._get_max_input_tokens() * self.token_count_thres

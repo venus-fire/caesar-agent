@@ -118,7 +118,7 @@ PRESETS: list[dict] = [
         "id": "fast",
         "label": "Fast",
         "caesar_preset": "fast",
-        "description": "Quick parallel exploration with DeepSeek (deepseek-chat). Roughly $0.10 and ~10 min.",
+        "description": "Quick parallel exploration with DeepSeek V4 Flash (deepseek-v4-flash). Roughly $0.10 and ~10 min.",
         "estimated_cost_usd": 0.10,
         "estimated_time_min": 10,
     },
@@ -126,7 +126,7 @@ PRESETS: list[dict] = [
         "id": "normal",
         "label": "Normal",
         "caesar_preset": "normal",
-        "description": "Mid-depth exploration with DeepSeek (deepseek-chat). Roughly $0.20 and ~20 min.",
+        "description": "Mid-depth exploration with DeepSeek V4 Flash (deepseek-v4-flash). Roughly $0.20 and ~20 min.",
         "estimated_cost_usd": 0.20,
         "estimated_time_min": 20,
     },
@@ -136,7 +136,7 @@ PRESETS: list[dict] = [
         "caesar_preset": "deeper",
         "description": (
             "Iterative depth-first walk; richer graph shapes (trees, branches). "
-            "DeepSeek (deepseek-chat). ~$0.50 and ~45–90 min."
+            "DeepSeek V4 Flash (deepseek-v4-flash). ~$0.50 and ~45–90 min."
         ),
         "estimated_cost_usd": 0.50,
         "estimated_time_min": 90,
@@ -146,7 +146,7 @@ PRESETS: list[dict] = [
         "label": "Deepest",
         "caesar_preset": "deepest",
         "description": (
-            "Extended iterative walk, heaviest budget. DeepSeek (deepseek-chat). "
+            "Extended iterative walk, heaviest budget. DeepSeek V4 Flash (deepseek-v4-flash). "
             "Roughly $2 and ~2–6 h."
         ),
         "estimated_cost_usd": 2.00,

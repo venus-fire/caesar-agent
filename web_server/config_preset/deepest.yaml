@@ -13,7 +13,7 @@ CaesarAgent:
   use_quick_explore: False
   quick_explore_insights: False
   exploration_llm_config:
-    model: deepseek-chat
+    model: deepseek-v4-flash
 
   adapt_role: True
 
@@ -32,7 +32,7 @@ ArtifactSynthesizer:
 LLMHandler:
   provider: deepseek
   base_url: https://api.deepseek.com
-  model: deepseek-chat
+  model: deepseek-v4-flash
   # Deep research + synthesis calls need the extra headroom.
   timeout: 1200
 
@@ -41,7 +41,7 @@ AgentMemory:
   use_graph: false
 
 ChromaClientManager:
-  model: deepseek-chat
+  model: deepseek-v4-flash
   # Local, free, no-API-key embeddings (chroma bundled ONNX all-MiniLM-L6-v2).
   embedding_model: all-MiniLM-L6-v2
 

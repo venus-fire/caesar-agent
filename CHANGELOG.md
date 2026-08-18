@@ -30,6 +30,12 @@ All notable changes to Caesar are documented in this file. Format follows [Keep 
   model names against OpenAI's list and rejects `deepseek-chat`; the DeepSeek path
   now uses `llama-index-llms-openai-like`'s `OpenAILike` (no model-name restriction),
   which requires adding that package to `requirements.txt`.
+- **DeepSeek V4 Flash.** Presets now target `deepseek-v4-flash` (the other allowed
+  model is `deepseek-v4-pro`). `MODEL_CONTEXT_SIZE` maps V4 to its real 1M-token
+  context: litellm reports DeepSeek at only 8192, which clamped `max_input_tokens`
+  to 0, so the context manager dropped the user message and DeepSeek replied with
+  a generic greeting — surfacing as "Missing required keys" / "No synthesis
+  artifacts". A guard also skips compression whenever the input budget is ≤ 0.
 
 ## [0.4.21] — 2026-08-17
 
